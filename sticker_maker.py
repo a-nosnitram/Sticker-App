@@ -1,14 +1,42 @@
 import os
 import sys
+import asyncio
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtGui import QPixmap, QColor
-from PyQt5.QtWidgets import QColorDialog, QFileDialog
+from PyQt5.QtWidgets import QColorDialog, QFileDialog, QDialog
 from PIL import Image, ImageDraw, ImageFont
-from PyQt5.QtCore import Qt, QTranslator, QCoreApplication
+from PyQt5.QtCore import Qt, QTranslator, QCoreApplication, QThread, pyqtSignal
 from io import BytesIO
 
+# --------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# import telegram API methods
+from telegram_api import create_sticker_pack, add_sticker_to_pack
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------
+#   new thread class to handle the Telegram API calls
+class StickerPackThread(QThread):
+    # signal emitted when the task is done
+    finished = pyqtSignal(dict)
+
+    def __init__(self, username, sticker_set_name, title, save_path, emoji, parent=None):
+        super().__init__(parent)
+        self.username = username
+        self.sticker_set_name = sticker_set_name
+        self.title = title
+        self.save_path = save_path
+        self.emoji = emoji
+
+    def run(self):
+        # running the async function using asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        response = loop.run_until_complete(create_sticker_pack(
+            self.username, self.sticker_set_name, self.title, self.save_path, self.emoji))
+        self.finished.emit(response)
+# ----------------------------------
+
 
 def resource_path(relative_path):
     try:
@@ -37,6 +65,8 @@ class Sticker_Maker(QtWidgets.QMainWindow):
         self.apply_caption_button.clicked.connect(self.apply_caption)
         self.clear_button.clicked.connect(self.clear)
         self.language_switch_button.clicked.connect(self.switch_language)
+        self.existing_pack_button.clicked.connect(self.export_to_existing_pack)
+        self.new_pack_button.clicked.connect(self.export_to_new_pack)
 
         self.image = None
         self.cleanImage = None
@@ -55,15 +85,24 @@ class Sticker_Maker(QtWidgets.QMainWindow):
         app.installTranslator(self.translator)
 
         # Update UI texts
-        self.setWindowTitle(QCoreApplication.translate('Sticker_Maker', 'Стикер Мейкер'))
-        self.file_upload_button.setText(QCoreApplication.translate('Sticker_Maker', 'Открыть Файл с Изображением'))
-        self.download_button.setText(QCoreApplication.translate('Sticker_Maker', 'Скачать Стикер'))
-        self.colour_select_button.setText(QCoreApplication.translate('Sticker_Maker', 'Выбрать Цвет'))
-        self.apply_caption_button.setText(QCoreApplication.translate('Sticker_Maker', 'Применить'))
-        self.clear_button.setText(QCoreApplication.translate('Sticker_Maker', 'Очистить'))
-        self.language_switch_button.setText(QCoreApplication.translate('Sticker_Maker', 'Switch to English'))
-        self.top_label.setText(QCoreApplication.translate('Sticker_Maker', 'Подпись Сверху'))
-        self.bottom_label.setText(QCoreApplication.translate('Sticker_Maker', 'Подпись Снизу'))
+        self.setWindowTitle(QCoreApplication.translate(
+            'Sticker_Maker', 'Стикер Мейкер'))
+        self.file_upload_button.setText(QCoreApplication.translate(
+            'Sticker_Maker', 'Открыть Файл с Изображением'))
+        self.download_button.setText(
+            QCoreApplication.translate('Sticker_Maker', 'Скачать Стикер'))
+        self.colour_select_button.setText(
+            QCoreApplication.translate('Sticker_Maker', 'Выбрать Цвет'))
+        self.apply_caption_button.setText(
+            QCoreApplication.translate('Sticker_Maker', 'Применить'))
+        self.clear_button.setText(
+            QCoreApplication.translate('Sticker_Maker', 'Очистить'))
+        self.language_switch_button.setText(
+            QCoreApplication.translate('Sticker_Maker', 'Switch to English'))
+        self.top_label.setText(QCoreApplication.translate(
+            'Sticker_Maker', 'Подпись Сверху'))
+        self.bottom_label.setText(QCoreApplication.translate(
+            'Sticker_Maker', 'Подпись Снизу'))
 
     def switch_language(self):
         # Toggle language
@@ -162,7 +201,61 @@ class Sticker_Maker(QtWidgets.QMainWindow):
                 "Sticker_Maker", "Скачать Стикер"), f"{name}.png", "PNG Files (*png)")
             if save_path[0]:
                 self.image.save(save_path[0], "PNG")
+            return save_path
 
+    # exporting sticker to telegram
+    def export_to_new_pack(self):
+        #     print("before async")
+        #     asyncio.ensure_future(self.create_sticker_pack_async(username, sticker_set_name, title, save_path, emoji))
+
+        save_path = self.save_image()
+        dialog = QDialog(self)
+        uic.loadUi(resource_path('resources/new_pack_dialog.ui'), dialog)
+
+        if dialog.exec_() == QDialog.Accepted:
+            username = dialog.username_lineEdit.text()
+            sticker_set_name = dialog.pack_name_lineEdit.text()
+            title = dialog.pack_title_lineEdit.text()
+            emoji = '😀'
+
+            # Create a QThread to run the async task
+            self.thread = StickerPackThread(
+                username, sticker_set_name, title, save_path, emoji)
+            # Connect the thread finish signal to a callback
+            self.thread.finished.connect(self.on_pack_creation_finished)
+            self.thread.start()
+
+    def on_pack_creation_finished(self, response):
+        # Handle the result of the sticker pack creation
+        if response.get("ok"):
+            print("Sticker pack created successfully!")
+        else:
+            print("Failed to create sticker pack:", response)
+
+    def export_to_existing_pack(self):
+        save_path = self.save_image()
+        dialog = QDialog(self)
+
+        uic.loadUi(resource_path('resources/existing_pack_dialog.ui'), dialog)
+
+        if dialog.exec_() == QDialog.Accepted:
+            username = dialog.username_lineEdit.text()
+            sticker_set_name = dialog.pack_name_lineEdit.text()
+            title = dialog.pack_title_lineEdit.text()
+            emoji = '😀'
+
+            asyncio.ensure_future(self.add_sticker_to_pack_async(
+                username, sticker_set_name, title, save_path, emoji))
+
+    # maybeee
+    async def add_sticker_to_pack_async(self, username, sticker_set_name, title, save_path, emoji):
+        print("reached async")
+        response = await add_sticker_to_pack(username, sticker_set_name, title, save_path, emoji)
+
+        if response.get("ok"):
+            print("success")
+        else:
+            print("failure :", response)
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
