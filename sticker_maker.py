@@ -14,8 +14,8 @@ from io import BytesIO
 from telegram_api import create_sticker_pack, add_sticker_to_pack
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# ----------------------------------
-#   new thread class to handle the Telegram API calls
+
+# new thread class to handle the Telegram API calls
 class StickerPackThread(QThread):
     # signal emitted when the task is done
     finished = pyqtSignal(dict)
@@ -35,8 +35,8 @@ class StickerPackThread(QThread):
         response = loop.run_until_complete(create_sticker_pack(
             self.username, self.sticker_set_name, self.title, self.save_path, self.emoji))
         self.finished.emit(response)
-# ----------------------------------
 
+# --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 def resource_path(relative_path):
     try:
@@ -249,6 +249,7 @@ class Sticker_Maker(QtWidgets.QMainWindow):
 
     # maybeee
     async def add_sticker_to_pack_async(self, username, sticker_set_name, title, save_path, emoji):
+        # checking : to be removed
         print("reached async")
         response = await add_sticker_to_pack(username, sticker_set_name, title, save_path, emoji)
 
@@ -256,8 +257,8 @@ class Sticker_Maker(QtWidgets.QMainWindow):
             print("success")
         else:
             print("failure :", response)
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 app = QtWidgets.QApplication(sys.argv)
 window = Sticker_Maker()

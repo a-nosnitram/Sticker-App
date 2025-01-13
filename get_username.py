@@ -1,9 +1,15 @@
 from telethon import TelegramClient
 from telethon.errors import UsernameNotOccupiedError
+from dotenv import load_dotenv
 
-api_id = '25650072'
-api_hash = '86741897522343d24d542922c6995441'
-bot_token = '7673679495:AAF9SHASlr26IBmkNWzEdbIXnHqd5g5oQDE'
+load_dotenv()
+
+api_id = os.getenv('api_id')
+api_hash = os.getenv('api_hash')
+bot_token = os.getenv('bot_token')
+
+if not api_id or not api_hash or not bot_token:
+    raise ValueError("Please set the 'api_id', 'api_hash', and 'bot_token' environment variables.")
 
 # creating a new telegram client (session saved as 'anon')
 client = TelegramClient('anon', api_id, api_hash).start(bot_token=bot_token)

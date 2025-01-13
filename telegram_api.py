@@ -1,10 +1,17 @@
 import requests
 import asyncio
+from dotenv import load_dotenv
 
 from get_username import get_user_id
 
-TELEGRAM_API_URL = "https://api.telegram.org/bot7673679495:AAF9SHASlr26IBmkNWzEdbIXnHqd5g5oQDE/"
+load_dotenv()
 
+bot_token = os.getenv('bot_token')
+
+if not bot_token:
+    raise ValueError("Please set the 'bot_token' environment variable.")
+
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{bot_token}/"
 
 async def create_sticker_pack(username, sticker_pack_name, title, sticker_file, emoji):
 
