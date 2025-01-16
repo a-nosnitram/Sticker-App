@@ -1,6 +1,7 @@
 from telethon import TelegramClient
 from telethon.errors import UsernameNotOccupiedError
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
@@ -16,9 +17,6 @@ client = TelegramClient('anon', api_id, api_hash).start(bot_token=bot_token)
 
 async def get_user_id(username):
     try:
-        # connect to client
-        # await client.start()
-
         # get the user entity by username
         user = await client.get_entity(username)
         print(username)
@@ -32,5 +30,3 @@ async def get_user_id(username):
     except Exception as e:
         print(f"Error: {e}")
         return None
-    finally:
-        await client.disconnect()

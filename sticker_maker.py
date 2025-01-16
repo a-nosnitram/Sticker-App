@@ -264,3 +264,17 @@ app = QtWidgets.QApplication(sys.argv)
 window = Sticker_Maker()
 window.show()
 sys.exit(app.exec_())
+
+async def main():
+    # Example usage
+    username = "495796712"
+    sticker_pack_name = "example_sticker_pack"
+    title = "Example Sticker Pack"
+    sticker_file = "Desktop/aaaaa.png"
+    emoji = "😀"
+
+    await create_sticker_pack(username, sticker_pack_name, title, sticker_file, emoji)
+    await add_sticker_to_pack(username, sticker_pack_name, sticker_file, emoji)
+
+if __name__ == "__main__":
+    asyncio.run(main())
