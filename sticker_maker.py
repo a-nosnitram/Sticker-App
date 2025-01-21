@@ -16,6 +16,8 @@ from telegram_api import create_sticker_pack, add_sticker_to_pack
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # new thread class to handle the Telegram API calls
+
+
 class StickerPackThread(QThread):
     # signal emitted when the task is done
     finished = pyqtSignal(dict)
@@ -37,6 +39,7 @@ class StickerPackThread(QThread):
         self.finished.emit(response)
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 def resource_path(relative_path):
     try:
@@ -203,78 +206,36 @@ class Sticker_Maker(QtWidgets.QMainWindow):
                 self.image.save(save_path[0], "PNG")
             return save_path
 
-    # exporting sticker to telegram
-    def export_to_new_pack(self):
-        #     print("before async")
-        #     asyncio.ensure_future(self.create_sticker_pack_async(username, sticker_set_name, title, save_path, emoji))
+    async def export_to_new_pack(self):
+        if self.image:
+            dialog = QDialog(self)
+            uic.loadUi(resource_path('resources/new_pack_dialog.ui'), dialog)
 
-        save_path = self.save_image()
-        dialog = QDialog(self)
-        uic.loadUi(resource_path('resources/new_pack_dialog.ui'), dialog)
+            if dialog.exec_() == QDialog.Accepted:
+                username = dialog.username_lineEdit.text()
+                sticker_set_name = dialog.pack_name_lineEdit.text()
+                title = dialog.pack_title_lineEdit.text()
+                emoji = '😀'  # temporary
 
-        if dialog.exec_() == QDialog.Accepted:
-            username = dialog.username_lineEdit.text()
-            sticker_set_name = dialog.pack_name_lineEdit.text()
-            title = dialog.pack_title_lineEdit.text()
-            emoji = '😀'
+                await create_sticker_pack(username, sticker_set_name, title, self.image, emoji)
 
-            # Create a QThread to run the async task
-            self.thread = StickerPackThread(
-                username, sticker_set_name, title, save_path, emoji)
-            # Connect the thread finish signal to a callback
-            self.thread.finished.connect(self.on_pack_creation_finished)
-            self.thread.start()
+    async def export_to_existing_pack(self):
+        if self.image:
+            dialog = QDialog(self)
+            uic.loadUi(resource_path(
+                'resources/existing_pack_dialog.ui'), dialog)
+            if dialog.exec_() == QDialog.Accepted:
+                username = dialog.username_lineEdit.text()
+                sticker_set_name = dialog.pack_name_lineEdit.text()
+                title = dialog.pack_title_lineEdit.text()
+                emoji = '😀'
 
-    def on_pack_creation_finished(self, response):
-        # Handle the result of the sticker pack creation
-        if response.get("ok"):
-            print("Sticker pack created successfully!")
-        else:
-            print("Failed to create sticker pack:", response)
-
-    def export_to_existing_pack(self):
-        save_path = self.save_image()
-        dialog = QDialog(self)
-
-        uic.loadUi(resource_path('resources/existing_pack_dialog.ui'), dialog)
-
-        if dialog.exec_() == QDialog.Accepted:
-            username = dialog.username_lineEdit.text()
-            sticker_set_name = dialog.pack_name_lineEdit.text()
-            title = dialog.pack_title_lineEdit.text()
-            emoji = '😀'
-
-            asyncio.ensure_future(self.add_sticker_to_pack_async(
-                username, sticker_set_name, title, save_path, emoji))
-
-    # maybeee
-    async def add_sticker_to_pack_async(self, username, sticker_set_name, title, save_path, emoji):
-        # checking : to be removed
-        print("reached async")
-        response = await add_sticker_to_pack(username, sticker_set_name, title, save_path, emoji)
-
-        if response.get("ok"):
-            print("success")
-        else:
-            print("failure :", response)
+                await add_sticker_to_pack(username, sticker_set_name, self.image, emoji)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 app = QtWidgets.QApplication(sys.argv)
 window = Sticker_Maker()
 window.show()
 sys.exit(app.exec_())
-
-async def main():
-    # Example usage
-    username = "495796712"
-    sticker_pack_name = "example_sticker_pack"
-    title = "Example Sticker Pack"
-    sticker_file = "Desktop/aaaaa.png"
-    emoji = "😀"
-
-    await create_sticker_pack(username, sticker_pack_name, title, sticker_file, emoji)
-    await add_sticker_to_pack(username, sticker_pack_name, sticker_file, emoji)
-
-if __name__ == "__main__":
-    asyncio.run(main())
